@@ -9,6 +9,52 @@ const extend = require('../lib/extend');
 const e = exposes.presets;
 const ea = exposes.access;
 
+const tuyaExtend = {
+    light_source: (options={}) => {
+        const toZigbee = [
+            // tz.tuya_data_point_test,
+            tz.tuya_state,
+            tz.tuya_brightness,
+            tz.tuya_timer,
+        ];
+        const fromZigbee = [
+            // fz.tuya_data_point_dump,
+            fz.tuya_light_source,
+        ];
+
+        const exposeLight = exposes.light().withBrightness();
+        exposeLight.setAccess('state', ea.STATE_SET);
+        exposeLight.setAccess('brightness', ea.STATE_SET);
+
+        const mode = options.mode;
+        if (mode === 'CCT' || mode === 'RGB+CCT') {
+            exposeLight.withColorTemp([250, 454]);
+            exposeLight.setAccess('color_temp', ea.STATE_SET); // FIXME: doesn't fail, but also doesn't work
+            toZigbee.push(tz.tuya_color_temp);
+        }
+        if (mode ==='RGB' || mode === 'RGBW' || mode === 'RGB+CCT') {
+            exposeLight.withColor(['hs']);
+            // exposeLight.setAccess('color', ea.STATE_SET); // TODO: implement setAccess to Composite class
+            toZigbee.push(tz.tuya_color);
+        }
+
+        return {
+            // ota: ota.zigbeeOTA, // TODO: needs verification
+            exposes: [
+                exposeLight,
+                exposes.numeric('timer', ea.STATE_SET).withDescription('On/Off timer countdown').withUnit('s'),
+            ],
+            toZigbee: toZigbee,
+            fromZigbee: fromZigbee,
+            configure: async (device, coordinatorEndpoint, logger) => {
+                const endpoint = device.getEndpoint(1);
+                const binds = ['genBasic', 'genGroups', 'genScenes', 'genTime'];
+                await reporting.bind(endpoint, coordinatorEndpoint, binds);
+            },
+        };
+    },
+};
+
 module.exports = [
     {
         fingerprint: [{modelID: 'TS0601', manufacturerName: '_TZE200_bq5c8xfe'}],
@@ -188,6 +234,41 @@ module.exports = [
             {vendor: 'Earda', model: 'EDM-1ZAB-EU'},
             {vendor: 'Earda', model: 'EDM-1ZBA-EU'},
         ],
+    },
+    // {
+    //     fingerprint: [{modelID: 'TS0601', manufacturerName: '...'}],
+    //     model: 'TS0601_skydance_dim',
+    //     vendor: 'TuYa',
+    //     description: 'Zigbee & RF 5 in 1 LED Controller WZ5 (DIM mode)',
+    //     extend: tuyaExtend.light_source({mode: 'DIM'}),
+    // },
+    {
+        fingerprint: [{modelID: 'TS0601', manufacturerName: '_TZE200_gz3n0tzf'}],
+        model: 'TS0601_skydance_cct',
+        vendor: 'TuYa',
+        description: 'Zigbee & RF 5 in 1 LED Controller WZ5 (CCT mode)',
+        extend: tuyaExtend.light_source({mode: 'CCT'}),
+    },
+    // {
+    //     fingerprint: [{modelID: 'TS0601', manufacturerName: '...'}],
+    //     model: 'TS0601_skydance_rgb',
+    //     vendor: 'TuYa',
+    //     description: 'Zigbee & RF 5 in 1 LED Controller WZ5 (RGB mode)',
+    //     extend: tuyaExtend.light_source({mode: 'RGB'}),
+    // },
+    // {
+    //     fingerprint: [{modelID: 'TS0601', manufacturerName: '...'}],
+    //     model: 'TS0601_skydance_rgbw',
+    //     vendor: 'TuYa',
+    //     description: 'Zigbee & RF 5 in 1 LED Controller WZ5 (RGBW mode)',
+    //     extend: tuyaExtend.light_source({mode: 'RGBW'}),
+    // },
+    {
+        fingerprint: [{modelID: 'TS0601', manufacturerName: '_TZE200_mde0utnv'}],
+        model: 'TS0601_skydance_rgbcct',
+        vendor: 'TuYa',
+        description: 'Zigbee & RF 5 in 1 LED Controller WZ5 (RGB+CCT mode)',
+        extend: tuyaExtend.light_source({mode: 'RGB+CCT'}),
     },
     {
         fingerprint: [{modelID: 'TS011F', manufacturerName: '_TZ3000_oiymh3qu'}],

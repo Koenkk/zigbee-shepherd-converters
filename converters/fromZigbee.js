@@ -3456,6 +3456,57 @@ const converters = {
             }
         },
     },
+    tuya_light_source: {
+        cluster: 'manuSpecificTuya',
+        type: ['commandGetData', 'commandSetDataResponse'],
+        convert: (model, msg, publish, options, meta) => {
+            // const [colorTempMin, colorTempMax] = light.findColorTempRange(entity, meta.logger); // FIXME
+            const [colorTempMin, colorTempMax] = [250, 454];
+            const dp = msg.data.dp;
+            const value = tuya.getDataValue(msg.data.datatype, msg.data.data);
+            switch (dp) {
+            case tuya.dataPoints.standardFn.lightSource.switchLed:
+                return {state: value ? 'ON': 'OFF'};
+            case tuya.dataPoints.standardFn.lightSource.workMode:
+                // return {mode: getKey(tuya.lightSourceModes, value)};
+                return null;
+            case tuya.dataPoints.standardFn.lightSource.brightValue:
+                return {brightness: mapNumberRange(value, 10, 1000, 0, 255)};
+            case tuya.dataPoints.standardFn.lightSource.tempValue:
+                return {color_temp: mapNumberRange(value, 0, 1000, colorTempMax, colorTempMin)};
+            case tuya.dataPoints.standardFn.lightSource.colourData: {
+                // eslint-disable-next-line no-constant-condition
+                if (false) {
+                    const hsv = tuya.decodeLightColor(value);
+                    if (hsv === null) {
+                        console.log(`zigbee-herdsman-converters:tuyaLightSource: unexpected color ${JSON.stringify(value)}`);
+                        return null;
+                    }
+                    const stateUpdate = {color: {}};
+                    stateUpdate.color.h = hsv.hue;
+                    if (hsv.saturation !== null) {
+                        stateUpdate.color.s = hsv.saturation;
+                    }
+                    if (hsv.value !== null) {
+                        stateUpdate.color.v = hsv.value;
+                        stateUpdate.brightness = mapNumberRange(hsv.value, 0, 100, 0, 255);
+                    }
+                    return stateUpdate;
+                } else {
+                    // NOTE: Reported value is ignored because it would be different than requested because of color correction.
+                    return null;
+                }
+            }
+            case tuya.dataPoints.standardFn.lightSource.sceneData:
+                return null;
+            case tuya.dataPoints.standardFn.lightSource.countdown:
+                return {timer: value};
+            default:
+                console.log(`zigbee-herdsman-converters:tuyaLightSource: NOT RECOGNIZED DP #${dp}
+                    with data ${JSON.stringify(msg.data)}`);
+            }
+        },
+    },
     tuya_data_point_dump: {
         cluster: 'manuSpecificTuya',
         type: ['commandGetData', 'commandSetDataResponse', 'commandActiveStatusReport'],
