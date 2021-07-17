@@ -1347,6 +1347,26 @@ const converters = {
             return {state: state, position: position};
         },
     },
+    cover_tilt: {
+        cluster: 'closuresWindowCovering',
+        type: ['attributeReport', 'readResponse'],
+        convert: (model, msg, publish, options, meta) => {
+            const result = {};
+            // Zigbee officially expects 'open' to be 0 and 'closed' to be 100 whereas
+            // HomeAssistant etc. work the other way round.
+            // For zigbee-herdsman-converters: open = 100, close = 0
+            // This wil assist with covers that do not report position and only tilt position. To accurately set the cover state
+            // for HomeAssistant using auto discovery we set position to the same value as the tilt position.
+            const invert = model.meta && model.meta.coverInverted ? !options.invert_cover : options.invert_cover;
+            if (msg.data.hasOwnProperty('currentPositionTiltPercentage') && msg.data['currentPositionTiltPercentage'] <= 100) {
+                const value = msg.data['currentPositionTiltPercentage'];
+                result.position = invert ? value : 100 - value;
+                result.state = options.invert_cover ? (value > 0 ? 'OPEN' : 'CLOSE') : (value > 0 ? 'CLOSE' : 'OPEN');
+                result.tilt = invert ? value : 100 - value;
+            }
+            return result;
+        },
+    },
     cover_state_via_onoff: {
         cluster: 'genOnOff',
         type: ['attributeReport', 'readResponse'],

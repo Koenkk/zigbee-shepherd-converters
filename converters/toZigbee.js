@@ -356,6 +356,27 @@ const converters = {
             await entity.read('closuresWindowCovering', [isPosition ? 'currentPositionLiftPercentage' : 'currentPositionTiltPercentage']);
         },
     },
+    cover_tilt: {
+        key: ['position', 'tilt'],
+        convertSet: async (entity, key, value, meta) => {
+            const isPosition = (key === 'position');
+            const invert = !(utils.getMetaValue(entity, meta.mapped, 'coverInverted', 'allEqual', false) ?
+                !meta.options.invert_cover : meta.options.invert_cover);
+            const position = invert ? 100 - value : value;
+
+            await entity.command(
+                'closuresWindowCovering',
+                'goToTiltPercentage',
+                {percentagetiltvalue: position},
+                utils.getOptions(meta.mapped, entity),
+            );
+
+            return {state: {[isPosition ? 'position' : 'tilt']: value}};
+        },
+        convertGet: async (entity, key, meta) => {
+            await entity.read('closuresWindowCovering', ['currentPositionTiltPercentage']);
+        },
+    },
     occupancy_timeout: {
         // Sets delay after motion detector changes from occupied to unoccupied
         key: ['occupancy_timeout'],
